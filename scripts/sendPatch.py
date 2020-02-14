@@ -33,7 +33,7 @@ if '.' not in consoleIP:
 consolePort = 5000
 
 if len(sys.argv) < 4:
-    version = '111'
+    version = '120'
 else:
     version = sys.argv[2]
 

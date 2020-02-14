@@ -3,7 +3,7 @@
 
 .PHONY: all clean skyline skyline_patch send
 
-CROSSVER ?= 111
+CROSSVER ?= 120
 IP ?= 192.168.1.8
 
 all: skyline skyline_patch send

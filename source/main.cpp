@@ -119,7 +119,7 @@ u64 archive_fake_uncomp_size(u64* archive_ptr, u32 entryid)
 }
 
 char* hook_get_version_string() {
-    return "Aldebaran 0.0.1β";
+    return "Aldebaran 0.0.2β";
 }
 
 void stub() {}
@@ -160,22 +160,21 @@ void runtimePatchMain() {
         NULL);
 
     A64HookFunction(
-        reinterpret_cast<void*>(text + 0x46cfa0),
+        reinterpret_cast<void*>(text + 0x4a12b0),
         reinterpret_cast<void*>(forge_hook),
         (void**)&og_load_entryid);
 
     A64HookFunction(
-        reinterpret_cast<void*>(text + 0x46c830),
+        reinterpret_cast<void*>(text + 0x4a0b40),
         reinterpret_cast<void*>(archive_fake_uncomp_size),
         (void**)&uncompress_entryid);
 
     A64HookFunction(
-        reinterpret_cast<void*>(text + 0x3b7f50),
+        reinterpret_cast<void*>(text + 0x3e63e0),
         reinterpret_cast<void*>(hook_get_version_string),
         NULL);
-
     
-    fe_malloc = (void* (*) (u64, u64)) text + 0x584ab0;
+    fe_malloc = (void* (*) (u64, u64)) text + 0x5bab80;
 
     skyline::Plugin::Manager::Init();
 }
