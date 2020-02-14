@@ -1,7 +1,11 @@
 #include "skyline/logger/TcpLogger.hpp"
+#include "nn/fs.h"
+#include "nn/util.h"
 
 #define IP      "192.168.1.31"
 #define PORT    6969
+
+char* ipAddress;
 
 namespace skyline {
     int g_tcpSocket;
@@ -10,9 +14,31 @@ namespace skyline {
     std::queue<char*>* g_msgQueue = nullptr;
 
     void TcpLogger::ThreadMain(void*){
+        nn::fs::FileHandle config;
+        char path[256];
+        char address[14];
+        ipAddress = new char[14];
+        nn::util::SNPrintf(path, 256, "sdmc:/Aldebaran/config.txt");
+        Result result;
+        result = nn::fs::OpenFile(&config, path, 1);
+        if(result == 0)
+        {
+            s64 size = 0;
+            if(nn::fs::GetFileSize(&size, config))
+                svcBreak(0x61, 0, 0);
 
+            if(nn::fs::ReadFile(config, 0, address, size))
+                svcBreak(0x62, 0, 0);
+
+            std::strncpy(ipAddress, address, size);
+            nn::fs::CloseFile(config);
+        }
+        else
+        {
+            ipAddress = IP;
+        }
+        //ipAddress = IP;
         TcpLogger::Initialize();
-
         TcpLogger::LogFormat("Skyline init!");
 
         while(true){
@@ -95,7 +121,7 @@ namespace skyline {
         if(g_tcpSocket & 0x80000000)
             return;
 
-        nn::socket::InetAton(IP, (nn::socket::InAddr*) &serverAddr.sin_addr.s_addr);
+        nn::socket::InetAton(ipAddress, (nn::socket::InAddr*) &serverAddr.sin_addr.s_addr);
         serverAddr.sin_family      = AF_INET;
         serverAddr.sin_port        = nn::socket::InetHtons(PORT);
 
