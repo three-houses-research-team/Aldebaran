@@ -119,7 +119,7 @@ u64 archive_fake_uncomp_size(u64* archive_ptr, u32 entryid)
 }
 
 char* hook_get_version_string() {
-    return "Aldebaran 0.0.2β";
+    return "Aldebaran 0.1.0";
 }
 
 void stub() {}
