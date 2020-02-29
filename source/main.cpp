@@ -82,6 +82,7 @@ u64* load_from_forge(u64* archive_ptr, u32 entryid, u64* file_ptr, u32 seek, u64
         nn::fs::CloseFile(file);
         
         skyline::TcpLogger::SendRawFormat("Forge ID: %d\n", entryid);
+        skyline::TcpLogger::SendRawFormat("Debug: seek: %d, size: %d\n", seek, size);
         return (u64*) contents;
     } else {
         skyline::TcpLogger::SendRawFormat("Base ID: %d\n", entryid);
@@ -126,7 +127,7 @@ void stub() {}
 
 void runtimePatchMain() {
     // wait for nnSdk to finish booting
-    nn::os::SleepThread(nn::TimeSpan::FromSeconds(5));
+    nn::os::SleepThread(nn::TimeSpan::FromSeconds(2));
     // init sd
     nn::fs::MountSdCardForDebug("sdmc");
 
