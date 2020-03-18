@@ -99,7 +99,6 @@ u64* forge_hook(u64* archive_ptr, u32 entryid, u64* file_ptr, u32 seek, u64 size
         return forgeResult;
 
     return og_load_entryid(archive_ptr, entryid, file_ptr, seek, size, unk3, unk4, unk5);
-    
 }
 
 u64 archive_fake_uncomp_size(u64* archive_ptr, u32 entryid)
@@ -120,17 +119,13 @@ u64 archive_fake_uncomp_size(u64* archive_ptr, u32 entryid)
 }
 
 char* hook_get_version_string() {
-    return "Aldebaran 0.1.0";
+    return "Aldebaran 0.1.2";
 }
 
 void stub() {}
+uint socketStub() { return 0; }
 
-void runtimePatchMain() {
-    // wait for nnSdk to finish booting
-    nn::os::SleepThread(nn::TimeSpan::FromSeconds(2));
-    // init sd
-    nn::fs::MountSdCardForDebug("sdmc");
-
+void runtimePatchMain() {  
     // init hooking setup
     A64HookInit();
 
@@ -138,7 +133,6 @@ void runtimePatchMain() {
     u64 text = memNextMapOfPerm((u64)nninitStartup, Perm_Rx); // nninitStartup can be reasonably assumed to be exported by main
     // find .rodata
     u64 rodata = memNextMapOfPerm((u64) nninitStartup, Perm_Rw);
-    skyline::TcpLogger::StartThread(); // start logging thread
 
     // override exception handler to dump info 
     nn::os::SetUserExceptionHandler(exceptionHandler, exceptionHandlerStack, sizeof(exceptionHandlerStack), &exceptionInfo);
@@ -176,9 +170,28 @@ void runtimePatchMain() {
         NULL);
     
     fe_malloc = (void* (*) (u64, u64)) text + 0x5bab80;
+    
+    // wait for nnSdk to finish booting
+    nn::os::SleepThread(nn::TimeSpan::FromSeconds(1));
+    //Mount SD card
+    nn::fs::MountSdCardForDebug("sdmc");
 
+    //Initialize socket for logging
+    const size_t poolSize = 0x100000;
+    void* socketPool = memalign(0x4000, poolSize);
+    nn::socket::Initialize(socketPool, poolSize, 0x20000, 14);
+
+    // Kill the actual function used by the game so it doesn't initialize a socket twice
+    A64HookFunction(
+        reinterpret_cast<void*>(text + 0xafccf0),
+        reinterpret_cast<void*>(socketStub),
+        NULL);
+
+
+    skyline::TcpLogger::StartThread();
     skyline::Plugin::Manager::Init();
 }
+
 
 void skylineMain() {
     virtmemSetup();

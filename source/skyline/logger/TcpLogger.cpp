@@ -48,16 +48,10 @@ namespace skyline {
     }
 
     void stub() {};
+    uint socketStub() { return 0; }
 
     // must be ran on core 3
     void TcpLogger::StartThread(){
-        const size_t poolSize = 0x100000;
-        //void* socketPool = memalign(0x4000, poolSize);
-        
-        //nn::socket::Initialize(socketPool, poolSize, 0x20000, 14);
-
-        A64HookFunction(reinterpret_cast<void*>(nn::socket::Initialize), reinterpret_cast<void*>(stub), NULL); // prevent Smash trying to init sockets twice (crash)
-        
         const size_t stackSize = 0x3000;
         void* threadStack = memalign(0x1000, stackSize);
         
