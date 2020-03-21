@@ -58,6 +58,7 @@ void exceptionHandler(nn::os::UserExceptionInfo* info){
 void* (*fe_malloc)(u64, u64);
 u64* (*og_load_entryid)(u64*,u32,u64*,u32,u64,u64*,u64*,u64*);
 u64 (*uncompress_entryid)(u64*, u32);
+void (*ktgl_io_fs_getfilepath)(char*, uint);
 
 u64* load_from_forge(u64* archive_ptr, u32 entryid, u64* file_ptr, u32 seek, u64 size, u64* unk3, u64* unk4, u64* unk5) {
     char path[256];
@@ -86,8 +87,14 @@ u64* load_from_forge(u64* archive_ptr, u32 entryid, u64* file_ptr, u32 seek, u64
         return (u64*) contents;
     } else {
         skyline::TcpLogger::SendRawFormat("Base ID: %d\n", entryid);
-        
     }
+
+    char filename[256];
+    ktgl_io_fs_getfilepath(filename, entryid);
+    if(filename[0] == '\0')
+        return 0;
+    
+    skyline::TcpLogger::SendRawFormat("Filename: %s\n", filename);
     return 0;
 } 
 
@@ -170,7 +177,7 @@ void runtimePatchMain() {
         NULL);
     
     fe_malloc = (void* (*) (u64, u64)) text + 0x5bab80;
-    
+    ktgl_io_fs_getfilepath = (void (*)(char*, uint))text + 0x4a47d0;
     // wait for nnSdk to finish booting
     nn::os::SleepThread(nn::TimeSpan::FromSeconds(1));
     //Mount SD card
