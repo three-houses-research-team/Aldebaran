@@ -31,6 +31,13 @@ Result roLoadModuleHook(nn::ro::Module* module, const void * nro, void * buffer,
     return rc;
 }
 
+struct BinGz {
+	u64 entry_count;
+	u64 unk;
+	u32 entry_id;
+	// ...
+};
+
 Result (*ogRoUnloadModule)(nn::ro::Module*);
 
 Result roUnloadModuleHook(nn::ro::Module* module){
@@ -51,14 +58,14 @@ void exceptionHandler(nn::os::UserExceptionInfo* info){
     skyline::TcpLogger::SendRawFormat("LR: %" PRIx64 " \n", info->LR.x);
     skyline::TcpLogger::SendRawFormat("SP: %" PRIx64   "\n", info->SP.x);
     skyline::TcpLogger::SendRawFormat("PC: %" PRIx64  "\n", info->PC.x);
-
-    //*((u64*)0) = 0x69;
 }
 
 void* (*fe_malloc)(u64, u64);
 u64* (*og_load_entryid)(u64*,u32,u64*,u32,u64,u64*,u64*,u64*);
 u64 (*uncompress_entryid)(u64*, u32);
 void (*ktgl_io_fs_getfilepath)(char*, uint);
+u32 (*original_filesize_by_idx)(BinGz*, uint);
+void* (*original_bingz_get_entry_offset)(BinGz* bin, u32 index);
 
 u64* load_from_forge(u64* archive_ptr, u32 entryid, u64* file_ptr, u32 seek, u64 size, u64* unk3, u64* unk4, u64* unk5) {
     char path[256];
@@ -93,7 +100,7 @@ u64* load_from_forge(u64* archive_ptr, u32 entryid, u64* file_ptr, u32 seek, u64
     ktgl_io_fs_getfilepath(filename, entryid);
     if(filename[0] == '\0')
         return 0;
-    
+
     skyline::TcpLogger::SendRawFormat("Filename: %s\n", filename);
     return 0;
 } 
@@ -125,8 +132,55 @@ u64 archive_fake_uncomp_size(u64* archive_ptr, u32 entryid)
     }
 }
 
+uint bingz_get_filesize_by_index(BinGz* bin, u32 index)
+{
+	char path[256];
+    nn::util::SNPrintf(path, 256, "sdmc:/Aldebaran/forge/%d/%d", bin->entry_id, index);
+    nn::fs::FileHandle file;
+    Result result;
+    result = nn::fs::OpenFile(&file, path, 1);
+    if (result == 0) {
+    	skyline::TcpLogger::SendRaw("BinGz index filesize read intercepted\n");
+        s64 filesize;
+        nn::fs::GetFileSize(&filesize, file);
+        nn::fs::CloseFile(file);
+        skyline::TcpLogger::SendRawFormat("Entry id: %d\nIndex: %d\nNew filesize: %d\n", bin->entry_id, index, filesize);
+        return (u32)filesize;
+    } else {
+    	if(bin->entry_id == 3121)
+    		skyline::TcpLogger::SendRaw("BinGz index filesize read intercepted\n");
+
+        return original_filesize_by_idx(bin, index);
+    }
+}
+
+void* bingz_get_entry_offset(BinGz* bin, u32 index)
+{
+	char path[256];
+    nn::util::SNPrintf(path, 256, "sdmc:/Aldebaran/forge/%d/%d", bin->entry_id, index);
+    nn::fs::FileHandle file;
+    Result result;
+    result = nn::fs::OpenFile(&file, path, 1);
+    if (result == 0) {
+        skyline::TcpLogger::SendRawFormat("Hijacked index found in BinGz\n", index, bin->entry_id);
+
+        s64 filesize;
+        nn::fs::GetFileSize(&filesize, file);
+
+        void* contents;
+        contents = fe_malloc(filesize, 0x10);
+
+        nn::fs::ReadFile(file, 0, contents, filesize);
+        nn::fs::CloseFile(file);
+
+        return contents;
+    } else {
+        return original_bingz_get_entry_offset(bin, index);
+    }
+}
+
 char* hook_get_version_string() {
-    return "Aldebaran 0.1.2";
+    return "Aldebaran 0.1.3";
 }
 
 void stub() {}
@@ -175,6 +229,16 @@ void runtimePatchMain() {
         reinterpret_cast<void*>(text + 0x3e63e0),
         reinterpret_cast<void*>(hook_get_version_string),
         NULL);
+
+    A64HookFunction(
+        reinterpret_cast<void*>(text + 0x4a4ca0),
+        reinterpret_cast<void*>(bingz_get_filesize_by_index),
+        (void**)&original_filesize_by_idx);
+
+    A64HookFunction(
+        reinterpret_cast<void*>(text + 0x4a4cc0),
+        reinterpret_cast<void*>(bingz_get_entry_offset),
+        (void**)&original_bingz_get_entry_offset);
     
     fe_malloc = (void* (*) (u64, u64)) text + 0x5bab80;
     ktgl_io_fs_getfilepath = (void (*)(char*, uint))text + 0x4a47d0;
